@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- PWA / Mobile App Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="WealthPulse">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#2563eb">
+    
+    <title>WealthPulse Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        .modal-overlay { transition: opacity 0.2s ease-out; z-index: 50; }
+        .modal-content { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .modal-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+        .modal-hidden .modal-content { transform: translateY(100%); }
+
+        /* Lock Screen specific */
+        #lockScreen { transition: opacity 0.4s ease; z-index: 100; }
+        .lock-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+    <!-- Lock Screen / Auth Layer -->
+    <div id="lockScreen" class="fixed inset-0 bg-white flex flex-col items-center justify-center p-8 text-center">
+        <div class="mb-8">
+            <div class="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center text-white shadow-2xl shadow-blue-200 mx-auto mb-4">
+                <i data-lucide="lock" size="32"></i>
+            </div>
+            <h1 id="lockTitle" class="text-2xl font-black tracking-tight">Access Locked</h1>
+            <p id="lockSub" class="text-sm text-slate-400 font-medium mt-2">Enter your password to continue</p>
+        </div>
+
+        <div class="w-full max-w-xs space-y-4">
+            <input type="password" id="passInput" placeholder="••••••••" class="w-full p-5 bg-slate-100 border-none rounded-[1.5rem] text-center font-black text-xl tracking-widest outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
+            <button id="authBtn" onclick="handleAuth()" class="w-full bg-blue-600 text-white py-5 rounded-[1.5rem] font-black shadow-xl shadow-blue-100 active:scale-95 transition-transform">Unlock</button>
+            
+            <div id="setupNote" class="hidden text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed pt-4">
+                This is your first time. Please set a password.
+            </div>
+
+            <button onclick="resetApp()" class="text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-red-400 transition-colors pt-12">
+                Forgot Password? Reset App
+            </button>
+        </div>
+    </div>
+
+    <!-- Main App Content -->
+    <div id="app" class="max-w-md mx-auto min-h-screen flex flex-col pb-24 opacity-0 transition-opacity duration-500">
+        <!-- Header -->
+        <header class="p-6 pt-8 flex justify-between items-end">
+            <div>
+                <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">My Wealth</p>
+                <h1 class="text-2xl font-black">Pulse</h1>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="lockApp()" class="bg-slate-100 text-slate-400 w-12 h-12 rounded-2xl flex items-center justify-center active:scale-95 transition-transform">
+                    <i data-lucide="lock" size="20"></i>
+                </button>
+                <button onclick="toggleModal('logModal', true)" class="bg-blue-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 active:scale-95 transition-transform">
+                    <i data-lucide="plus"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Totals Section -->
+        <div class="px-6 space-y-3">
+            <div class="bg-slate-900 rounded-[2.5rem] p-7 text-white shadow-xl">
+                <p class="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Total Naira</p>
+                <h2 id="totalNaira" class="text-3xl font-black tracking-tight">₦0</h2>
+            </div>
+            <div class="bg-white rounded-[2.5rem] p-7 border border-slate-100 shadow-sm">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Dollars</p>
+                <h2 id="totalDollars" class="text-3xl font-black tracking-tight text-slate-800">$0</h2>
+            </div>
+        </div>
+
+        <!-- Platforms -->
+        <div class="px-6 mt-8 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-slate-400 text-xs uppercase tracking-widest">Platforms</h3>
+                <button onclick="toggleModal('sourceModal', true)" class="text-blue-600 font-bold text-xs uppercase">New</button>
+            </div>
+            <div id="platformList" class="grid grid-cols-1 gap-3">
+                <!-- Platforms will be injected here -->
+            </div>
+        </div>
+
+        <!-- Activity -->
+        <div class="px-6 mt-8 mb-4">
+            <h3 class="font-bold text-slate-400 text-xs uppercase tracking-widest mb-4">Global Activity</h3>
+            <div id="ledgerList" class="bg-white rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm">
+                <!-- Logs will be injected here -->
+            </div>
+        </div>
+
+        <!-- Footer Menu -->
+        <nav class="fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-4 bg-slate-900 p-2 rounded-3xl shadow-2xl z-40 border border-white/10">
+            <button class="px-6 py-2 rounded-2xl bg-white/10 text-white font-bold text-xs">Home</button>
+            <button onclick="exportData()" class="px-6 py-2 rounded-2xl text-slate-400 hover:text-white font-bold text-xs transition-colors">Export</button>
+        </nav>
+    </div>
+
+    <!-- Platform Detail Modal (HISTORY FOR INDIVIDUAL PLATFORM) -->
+    <div id="detailModal" class="modal-overlay fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 backdrop-blur-sm modal-hidden">
+        <div class="modal-content bg-white h-[85vh] rounded-t-[2.5rem] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-8 pb-4 flex justify-between items-center bg-white sticky top-0 z-10">
+                <div>
+                    <p id="detailCurrency" class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Platform Details</p>
+                    <h2 id="detailTitle" class="text-xl font-black">History</h2>
+                </div>
+                <button onclick="toggleModal('detailModal', false)" class="bg-slate-100 p-2 rounded-full"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-8 pt-0 flex-1 overflow-y-auto no-scrollbar">
+                <div class="bg-slate-50 rounded-3xl p-6 mb-6">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Current Balance</p>
+                    <h3 id="detailBalance" class="text-2xl font-black">₦0</h3>
+                </div>
+                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Transaction Ledger</h4>
+                <div id="detailLedger" class="space-y-3">
+                    <!-- Specific platform logs injected here -->
+                </div>
+            </div>
+            <div class="p-8 pt-4 bg-white border-t border-slate-100">
+                <button id="detailDeleteBtn" class="w-full bg-red-50 text-red-500 py-4 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-transform">Delete Platform</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Balance Modal -->
+    <div id="logModal" class="modal-overlay fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 backdrop-blur-sm modal-hidden">
+        <div class="modal-content bg-white rounded-t-[2.5rem] p-8 pb-12 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-black">Update Balance</h2>
+                <button onclick="toggleModal('logModal', false)" class="bg-slate-100 p-2 rounded-full"><i data-lucide="x"></i></button>
+            </div>
+            <div class="space-y-4">
+                <select id="logSource" class="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold text-sm outline-none appearance-none"></select>
+                <div class="relative">
+                    <span id="currencySymbol" class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400">₦</span>
+                    <input type="number" id="logAmount" placeholder="Amount to add" class="w-full p-4 pl-10 bg-slate-50 border-none rounded-2xl font-black text-lg outline-none">
+                </div>
+                <input type="date" id="logDate" class="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold text-sm outline-none">
+                <button onclick="saveLog()" class="w-full bg-blue-600 text-white py-5 rounded-3xl font-black text-sm shadow-xl mt-2 active:scale-95 transition-transform">Save Entry</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Platform Modal -->
+    <div id="sourceModal" class="modal-overlay fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 backdrop-blur-sm modal-hidden">
+        <div class="modal-content bg-white rounded-t-[2.5rem] p-8 pb-12 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-black">New Platform</h2>
+                <button onclick="toggleModal('sourceModal', false)" class="bg-slate-100 p-2 rounded-full"><i data-lucide="x"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div class="flex gap-2 p-1 bg-slate-100 rounded-2xl">
+                    <button id="btnNGN" onclick="setNewCurrency('NGN')" class="flex-1 py-3 rounded-xl text-xs font-black transition-all bg-white shadow-sm text-blue-600">Naira</button>
+                    <button id="btnUSD" onclick="setNewCurrency('USD')" class="flex-1 py-3 rounded-xl text-xs font-black transition-all text-slate-400">Dollar</button>
+                </div>
+                <input type="text" id="sourceName" placeholder="Platform Name (e.g. Access MMF)" class="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold text-sm outline-none">
+                <button onclick="saveSource()" class="w-full bg-slate-900 text-white py-5 rounded-3xl font-black text-sm shadow-xl mt-2 active:scale-95 transition-transform">Create Platform</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        let sources = JSON.parse(localStorage.getItem('wp_v4_sources')) || [
+            { id: '1', name: 'Access MMF', currency: 'NGN', color: '#3b82f6' },
+            { id: '2', name: 'Binance USDT', currency: 'USD', color: '#f59e0b' }
+        ];
+        let logs = JSON.parse(localStorage.getItem('wp_v4_logs')) || [];
+        let storedPassword = localStorage.getItem('wp_password');
+        let newCurrency = 'NGN';
+
+        // --- Auth Functions ---
+        function initAuth() {
+            if (!storedPassword) {
+                document.getElementById('lockTitle').innerText = "Create Password";
+                document.getElementById('lockSub').innerText = "Secure your financial data";
+                document.getElementById('authBtn').innerText = "Set Password";
+                document.getElementById('setupNote').classList.remove('hidden');
+            }
+            lucide.createIcons();
+        }
+
+        function handleAuth() {
+            const input = document.getElementById('passInput').value;
+            if (!input) return;
+
+            if (!storedPassword) {
+                localStorage.setItem('wp_password', input);
+                storedPassword = input;
+                unlockApp();
+            } else {
+                if (input === storedPassword) {
+                    unlockApp();
+                } else {
+                    document.getElementById('passInput').classList.add('ring-2', 'ring-red-500');
+                    setTimeout(() => document.getElementById('passInput').classList.remove('ring-2', 'ring-red-500'), 500);
+                    document.getElementById('passInput').value = '';
+                }
+            }
+        }
+
+        function unlockApp() {
+            document.getElementById('lockScreen').classList.add('lock-hidden');
+            document.getElementById('app').classList.remove('opacity-0');
+            document.getElementById('passInput').value = '';
+            render();
+        }
+
+        function lockApp() {
+            document.getElementById('lockScreen').classList.remove('lock-hidden');
+            document.getElementById('app').classList.add('opacity-0');
+        }
+
+        function resetApp() {
+            if (confirm("FORGET PASSWORD? This will PERMANENTLY delete all your financial history and reset the app. There is no way to recover your data.")) {
+                localStorage.clear();
+                window.location.reload();
+            }
+        }
+
+        // --- Core Functions ---
+        function saveToStorage() {
+            localStorage.setItem('wp_v4_sources', JSON.stringify(sources));
+            localStorage.setItem('wp_v4_logs', JSON.stringify(logs));
+            render();
+        }
+
+        function toggleModal(id, show) {
+            const el = document.getElementById(id);
+            if (show) {
+                el.classList.remove('modal-hidden');
+                if (id === 'logModal') {
+                    document.getElementById('logDate').value = new Date().toISOString().split('T')[0];
+                    updateLogCurrency();
+                }
+            } else {
+                el.classList.add('modal-hidden');
+            }
+        }
+
+        function viewPlatformDetails(id) {
+            const source = sources.find(s => s.id === id);
+            if (!source) return;
+
+            const platformLogs = logs.filter(l => l.sourceId === id);
+            const balance = platformLogs.reduce((a, b) => a + b.amount, 0);
+
+            document.getElementById('detailTitle').innerText = source.name;
+            document.getElementById('detailCurrency').innerText = `${source.currency} Platform History`;
+            document.getElementById('detailBalance').innerText = format(balance, source.currency);
+            document.getElementById('detailDeleteBtn').onclick = () => deleteSource(id);
+
+            document.getElementById('detailLedger').innerHTML = platformLogs.length === 0
+                ? `<p class="p-8 text-center text-slate-300 text-[10px] font-bold uppercase">No entries for this platform</p>`
+                : platformLogs.map(l => `
+                    <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
+                        <div>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase">${new Date(l.date).toLocaleDateString()}</p>
+                            <p class="font-black text-sm ${l.amount < 0 ? 'text-red-500' : 'text-slate-800'}">
+                                ${l.amount > 0 ? '+' : ''}${format(l.amount, source.currency)}
+                            </p>
+                        </div>
+                        <button onclick="deleteLog('${l.id}', '${id}')" class="text-slate-200 hover:text-red-400 p-2">
+                            <i data-lucide="trash-2" size="14"></i>
+                        </button>
+                    </div>
+                `).join('');
+
+            toggleModal('detailModal', true);
+            lucide.createIcons();
+        }
+
+        function deleteLog(logId, sourceId) {
+            if (confirm("Delete this entry?")) {
+                logs = logs.filter(l => l.id !== logId);
+                saveToStorage();
+                // Refresh detail view
+                viewPlatformDetails(sourceId);
+            }
+        }
+
+        function setNewCurrency(curr) {
+            newCurrency = curr;
+            document.getElementById('btnNGN').className = `flex-1 py-3 rounded-xl text-xs font-black transition-all ${curr === 'NGN' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`;
+            document.getElementById('btnUSD').className = `flex-1 py-3 rounded-xl text-xs font-black transition-all ${curr === 'USD' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`;
+        }
+
+        function updateLogCurrency() {
+            const sourceId = document.getElementById('logSource').value;
+            const source = sources.find(s => s.id === sourceId);
+            document.getElementById('currencySymbol').innerText = source?.currency === 'USD' ? '$' : '₦';
+        }
+
+        function saveSource() {
+            const name = document.getElementById('sourceName').value;
+            if (!name) return;
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+            sources.push({
+                id: Date.now().toString(),
+                name: name,
+                currency: newCurrency,
+                color: colors[sources.length % colors.length]
+            });
+            document.getElementById('sourceName').value = '';
+            toggleModal('sourceModal', false);
+            saveToStorage();
+        }
+
+        function saveLog() {
+            const sourceId = document.getElementById('logSource').value;
+            const amount = parseFloat(document.getElementById('logAmount').value);
+            const date = document.getElementById('logDate').value;
+            if (!sourceId || isNaN(amount)) return;
+
+            logs.unshift({ id: Date.now().toString(), sourceId, amount, date });
+            document.getElementById('logAmount').value = '';
+            toggleModal('logModal', false);
+            saveToStorage();
+        }
+
+        function deleteSource(id) {
+            if (confirm("Delete this platform and all its history?")) {
+                sources = sources.filter(s => s.id !== id);
+                logs = logs.filter(l => l.sourceId !== id);
+                toggleModal('detailModal', false);
+                saveToStorage();
+            }
+        }
+
+        function format(val, curr) {
+            return new Intl.NumberFormat(curr === 'NGN' ? 'en-NG' : 'en-US', {
+                style: 'currency', currency: curr, maximumFractionDigits: 0
+            }).format(val);
+        }
+
+        function exportData() {
+            if (logs.length === 0) return alert("No data to export");
+            const csv = "Date,Platform,Currency,Amount\n" + 
+                logs.map(l => {
+                    const s = sources.find(src => src.id === l.sourceId);
+                    return `${l.date},${s?.name},${s?.currency},${l.amount}`;
+                }).join('\n');
+            console.log(csv);
+            alert("CSV data exported to browser console");
+        }
+
+        // --- Rendering ---
+        function render() {
+            const sourceBalances = {};
+            let totalN = 0;
+            let totalD = 0;
+
+            sources.forEach(s => {
+                const bal = logs.filter(l => l.sourceId === s.id).reduce((a, b) => a + b.amount, 0);
+                sourceBalances[s.id] = bal;
+                if (s.currency === 'NGN') totalN += bal;
+                else totalD += bal;
+            });
+
+            document.getElementById('totalNaira').innerText = format(totalN, 'NGN');
+            document.getElementById('totalDollars').innerText = format(totalD, 'USD');
+
+            // Platforms List
+            document.getElementById('platformList').innerHTML = sources.map(s => `
+                <div onclick="viewPlatformDetails('${s.id}')" class="bg-white p-5 rounded-3xl border border-slate-100 flex justify-between items-center shadow-sm active:scale-[0.98] transition-all cursor-pointer">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md" style="background-color: ${s.color}">
+                            <i data-lucide="${s.currency === 'USD' ? 'globe' : 'landmark'}" size="18"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm">${s.name}</h4>
+                            <p class="text-[10px] font-bold text-slate-300 uppercase">${s.currency} Platform</p>
+                        </div>
+                    </div>
+                    <div class="text-right flex items-center gap-3">
+                        <span class="font-black text-sm">${format(sourceBalances[s.id], s.currency)}</span>
+                        <i data-lucide="chevron-right" class="text-slate-200" size="16"></i>
+                    </div>
+                </div>
+            `).join('');
+
+            // Global Recent Ledger
+            document.getElementById('ledgerList').innerHTML = logs.length === 0 
+                ? `<p class="p-8 text-center text-slate-300 text-xs font-bold uppercase tracking-widest">No entries yet</p>`
+                : logs.slice(0, 10).map(l => {
+                    const s = sources.find(src => src.id === l.sourceId);
+                    return `
+                        <div class="p-4 border-b border-slate-50 last:border-none flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-xs">${s?.name || 'Unknown'}</p>
+                                <p class="text-[9px] text-slate-400 font-medium">${new Date(l.date).toLocaleDateString()}</p>
+                            </div>
+                            <span class="font-black text-xs ${l.amount < 0 ? 'text-red-500' : 'text-slate-700'}">
+                                ${l.amount > 0 ? '+' : ''}${format(l.amount, s?.currency)}
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+
+            // Update Log Modal Select
+            document.getElementById('logSource').innerHTML = sources.map(s => 
+                `<option value="${s.id}">${s.name} (${s.currency})</option>`
+            ).join('');
+            
+            lucide.createIcons();
+        }
+
+        // --- Init ---
+        document.getElementById('logSource').addEventListener('change', updateLogCurrency);
+        document.getElementById('passInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleAuth();
+        });
+        
+        window.onload = initAuth;
+    </script>
+</body>
+</html>
