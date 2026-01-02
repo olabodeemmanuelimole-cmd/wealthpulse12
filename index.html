@@ -69,7 +69,7 @@
                 <button onclick="lockApp()" class="bg-slate-100 text-slate-400 w-12 h-12 rounded-2xl flex items-center justify-center active:scale-95 transition-transform">
                     <i data-lucide="lock" size="20"></i>
                 </button>
-                <button onclick="toggleModal('logModal', true)" class="bg-blue-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 active:scale-95 transition-transform">
+                <button onclick="openLogModal()" class="bg-blue-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 active:scale-95 transition-transform">
                     <i data-lucide="plus"></i>
                 </button>
             </div>
@@ -91,7 +91,7 @@
         <div class="px-6 mt-8 space-y-4">
             <div class="flex justify-between items-center">
                 <h3 class="font-bold text-slate-400 text-xs uppercase tracking-widest">Platforms</h3>
-                <button onclick="toggleModal('sourceModal', true)" class="text-blue-600 font-bold text-xs uppercase">New</button>
+                <button onclick="openSourceModal()" class="text-blue-600 font-bold text-xs uppercase">New</button>
             </div>
             <div id="platformList" class="grid grid-cols-1 gap-3">
                 <!-- Platforms will be injected here -->
@@ -117,9 +117,12 @@
     <div id="detailModal" class="modal-overlay fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 backdrop-blur-sm modal-hidden">
         <div class="modal-content bg-white h-[85vh] rounded-t-[2.5rem] flex flex-col shadow-2xl overflow-hidden">
             <div class="p-8 pb-4 flex justify-between items-center bg-white sticky top-0 z-10">
-                <div>
-                    <p id="detailCurrency" class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Platform Details</p>
-                    <h2 id="detailTitle" class="text-xl font-black">History</h2>
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <p id="detailCurrency" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">History</p>
+                        <button id="detailEditSourceBtn" class="text-blue-500 text-[10px] font-bold uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded">Edit Platform</button>
+                    </div>
+                    <h2 id="detailTitle" class="text-xl font-black">Platform Name</h2>
                 </div>
                 <button onclick="toggleModal('detailModal', false)" class="bg-slate-100 p-2 rounded-full"><i data-lucide="x"></i></button>
             </div>
@@ -143,7 +146,7 @@
     <div id="logModal" class="modal-overlay fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 backdrop-blur-sm modal-hidden">
         <div class="modal-content bg-white rounded-t-[2.5rem] p-8 pb-12 shadow-2xl">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-black">Update Balance</h2>
+                <h2 id="logModalTitle" class="text-xl font-black">Update Balance</h2>
                 <button onclick="toggleModal('logModal', false)" class="bg-slate-100 p-2 rounded-full"><i data-lucide="x"></i></button>
             </div>
             <div class="space-y-4">
@@ -152,6 +155,7 @@
                     <span id="currencySymbol" class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400">₦</span>
                     <input type="number" id="logAmount" placeholder="Amount to add" class="w-full p-4 pl-10 bg-slate-50 border-none rounded-2xl font-black text-lg outline-none">
                 </div>
+                <input type="text" id="logDetail" placeholder="Description/Details (e.g. Salary, Interest)" class="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold text-sm outline-none">
                 <input type="date" id="logDate" class="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold text-sm outline-none">
                 <button onclick="saveLog()" class="w-full bg-blue-600 text-white py-5 rounded-3xl font-black text-sm shadow-xl mt-2 active:scale-95 transition-transform">Save Entry</button>
             </div>
@@ -162,7 +166,7 @@
     <div id="sourceModal" class="modal-overlay fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 backdrop-blur-sm modal-hidden">
         <div class="modal-content bg-white rounded-t-[2.5rem] p-8 pb-12 shadow-2xl">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-black">New Platform</h2>
+                <h2 id="sourceModalTitle" class="text-xl font-black">New Platform</h2>
                 <button onclick="toggleModal('sourceModal', false)" class="bg-slate-100 p-2 rounded-full"><i data-lucide="x"></i></button>
             </div>
             <div class="space-y-4">
@@ -171,7 +175,7 @@
                     <button id="btnUSD" onclick="setNewCurrency('USD')" class="flex-1 py-3 rounded-xl text-xs font-black transition-all text-slate-400">Dollar</button>
                 </div>
                 <input type="text" id="sourceName" placeholder="Platform Name (e.g. Access MMF)" class="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold text-sm outline-none">
-                <button onclick="saveSource()" class="w-full bg-slate-900 text-white py-5 rounded-3xl font-black text-sm shadow-xl mt-2 active:scale-95 transition-transform">Create Platform</button>
+                <button onclick="saveSource()" class="w-full bg-slate-900 text-white py-5 rounded-3xl font-black text-sm shadow-xl mt-2 active:scale-95 transition-transform">Save Platform</button>
             </div>
         </div>
     </div>
@@ -185,6 +189,10 @@
         let logs = JSON.parse(localStorage.getItem('wp_v4_logs')) || [];
         let storedPassword = localStorage.getItem('wp_password');
         let newCurrency = 'NGN';
+        
+        // Track editing IDs
+        let editingSourceId = null;
+        let editingLogId = null;
 
         // --- Auth Functions ---
         function initAuth() {
@@ -229,110 +237,59 @@
         }
 
         function resetApp() {
-            if (confirm("FORGET PASSWORD? This will PERMANENTLY delete all your financial history and reset the app. There is no way to recover your data.")) {
+            if (confirm("FORGET PASSWORD? This will PERMANENTLY delete all your financial history and reset the app.")) {
                 localStorage.clear();
                 window.location.reload();
             }
         }
 
-        // --- Core Functions ---
-        function saveToStorage() {
-            localStorage.setItem('wp_v4_sources', JSON.stringify(sources));
-            localStorage.setItem('wp_v4_logs', JSON.stringify(logs));
-            render();
-        }
-
+        // --- Modal Control ---
         function toggleModal(id, show) {
             const el = document.getElementById(id);
             if (show) {
                 el.classList.remove('modal-hidden');
-                if (id === 'logModal') {
-                    document.getElementById('logDate').value = new Date().toISOString().split('T')[0];
-                    updateLogCurrency();
-                }
             } else {
                 el.classList.add('modal-hidden');
             }
         }
 
-        function viewPlatformDetails(id) {
-            const source = sources.find(s => s.id === id);
-            if (!source) return;
-
-            const platformLogs = logs.filter(l => l.sourceId === id);
-            const balance = platformLogs.reduce((a, b) => a + b.amount, 0);
-
-            document.getElementById('detailTitle').innerText = source.name;
-            document.getElementById('detailCurrency').innerText = `${source.currency} Platform History`;
-            document.getElementById('detailBalance').innerText = format(balance, source.currency);
-            document.getElementById('detailDeleteBtn').onclick = () => deleteSource(id);
-
-            document.getElementById('detailLedger').innerHTML = platformLogs.length === 0
-                ? `<p class="p-8 text-center text-slate-300 text-[10px] font-bold uppercase">No entries for this platform</p>`
-                : platformLogs.map(l => `
-                    <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
-                        <div>
-                            <p class="text-[10px] text-slate-400 font-bold uppercase">${new Date(l.date).toLocaleDateString()}</p>
-                            <p class="font-black text-sm ${l.amount < 0 ? 'text-red-500' : 'text-slate-800'}">
-                                ${l.amount > 0 ? '+' : ''}${format(l.amount, source.currency)}
-                            </p>
-                        </div>
-                        <button onclick="deleteLog('${l.id}', '${id}')" class="text-slate-200 hover:text-red-400 p-2">
-                            <i data-lucide="trash-2" size="14"></i>
-                        </button>
-                    </div>
-                `).join('');
-
-            toggleModal('detailModal', true);
-            lucide.createIcons();
-        }
-
-        function deleteLog(logId, sourceId) {
-            if (confirm("Delete this entry?")) {
-                logs = logs.filter(l => l.id !== logId);
-                saveToStorage();
-                // Refresh detail view
-                viewPlatformDetails(sourceId);
+        // --- Logic: Source/Platform Management ---
+        function openSourceModal(editId = null) {
+            editingSourceId = editId;
+            if (editId) {
+                const s = sources.find(src => src.id === editId);
+                document.getElementById('sourceModalTitle').innerText = "Edit Platform";
+                document.getElementById('sourceName').value = s.name;
+                setNewCurrency(s.currency);
+            } else {
+                document.getElementById('sourceModalTitle').innerText = "New Platform";
+                document.getElementById('sourceName').value = "";
+                setNewCurrency('NGN');
             }
-        }
-
-        function setNewCurrency(curr) {
-            newCurrency = curr;
-            document.getElementById('btnNGN').className = `flex-1 py-3 rounded-xl text-xs font-black transition-all ${curr === 'NGN' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`;
-            document.getElementById('btnUSD').className = `flex-1 py-3 rounded-xl text-xs font-black transition-all ${curr === 'USD' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`;
-        }
-
-        function updateLogCurrency() {
-            const sourceId = document.getElementById('logSource').value;
-            const source = sources.find(s => s.id === sourceId);
-            document.getElementById('currencySymbol').innerText = source?.currency === 'USD' ? '$' : '₦';
+            toggleModal('sourceModal', true);
         }
 
         function saveSource() {
             const name = document.getElementById('sourceName').value;
             if (!name) return;
-            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-            sources.push({
-                id: Date.now().toString(),
-                name: name,
-                currency: newCurrency,
-                color: colors[sources.length % colors.length]
-            });
-            document.getElementById('sourceName').value = '';
+
+            if (editingSourceId) {
+                const idx = sources.findIndex(s => s.id === editingSourceId);
+                sources[idx].name = name;
+                sources[idx].currency = newCurrency;
+                editingSourceId = null;
+            } else {
+                const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+                sources.push({
+                    id: Date.now().toString(),
+                    name: name,
+                    currency: newCurrency,
+                    color: colors[sources.length % colors.length]
+                });
+            }
+            saveToStorage();
             toggleModal('sourceModal', false);
-            saveToStorage();
-        }
-
-        function saveLog() {
-            const sourceId = document.getElementById('logSource').value;
-            const amount = parseFloat(document.getElementById('logAmount').value);
-            const date = document.getElementById('logDate').value;
-            if (!sourceId || isNaN(amount)) return;
-
-            logs.unshift({ id: Date.now().toString(), sourceId, amount, date });
-            document.getElementById('logAmount').value = '';
-            toggleModal('logModal', false);
-            saveToStorage();
+            toggleModal('detailModal', false); // Close detail if editing from there
         }
 
         function deleteSource(id) {
@@ -344,6 +301,130 @@
             }
         }
 
+        function setNewCurrency(curr) {
+            newCurrency = curr;
+            document.getElementById('btnNGN').className = `flex-1 py-3 rounded-xl text-xs font-black transition-all ${curr === 'NGN' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`;
+            document.getElementById('btnUSD').className = `flex-1 py-3 rounded-xl text-xs font-black transition-all ${curr === 'USD' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`;
+        }
+
+        // --- Logic: Log/Entry Management ---
+        function openLogModal(editId = null, sourceIdFallback = null) {
+            editingLogId = editId;
+            const selectEl = document.getElementById('logSource');
+            
+            // Populate select options
+            selectEl.innerHTML = sources.map(s => 
+                `<option value="${s.id}">${s.name} (${s.currency})</option>`
+            ).join('');
+
+            if (editId) {
+                const log = logs.find(l => l.id === editId);
+                document.getElementById('logModalTitle').innerText = "Edit Entry";
+                document.getElementById('logSource').value = log.sourceId;
+                document.getElementById('logAmount').value = log.amount;
+                document.getElementById('logDetail').value = log.detail || "";
+                document.getElementById('logDate').value = log.date.split('T')[0];
+            } else {
+                document.getElementById('logModalTitle').innerText = "Update Balance";
+                document.getElementById('logSource').value = sourceIdFallback || (sources[0]?.id || "");
+                document.getElementById('logAmount').value = "";
+                document.getElementById('logDetail').value = "";
+                document.getElementById('logDate').value = new Date().toISOString().split('T')[0];
+            }
+            
+            updateLogCurrency();
+            toggleModal('logModal', true);
+        }
+
+        function saveLog() {
+            const sourceId = document.getElementById('logSource').value;
+            const amount = parseFloat(document.getElementById('logAmount').value);
+            const detail = document.getElementById('logDetail').value;
+            const date = document.getElementById('logDate').value;
+
+            if (!sourceId || isNaN(amount)) return;
+
+            if (editingLogId) {
+                const idx = logs.findIndex(l => l.id === editingLogId);
+                logs[idx] = { ...logs[idx], sourceId, amount, detail, date: new Date(date).toISOString() };
+                editingLogId = null;
+            } else {
+                logs.unshift({
+                    id: Date.now().toString(),
+                    sourceId,
+                    amount,
+                    detail,
+                    date: new Date(date).toISOString()
+                });
+            }
+
+            saveToStorage();
+            toggleModal('logModal', false);
+            // If we are currently looking at a platform's detail view, refresh it
+            const detailModalHidden = document.getElementById('detailModal').classList.contains('modal-hidden');
+            if (!detailModalHidden) viewPlatformDetails(sourceId);
+        }
+
+        function deleteLog(logId, sourceId) {
+            if (confirm("Delete this entry?")) {
+                logs = logs.filter(l => l.id !== logId);
+                saveToStorage();
+                viewPlatformDetails(sourceId);
+            }
+        }
+
+        function updateLogCurrency() {
+            const sourceId = document.getElementById('logSource').value;
+            const source = sources.find(s => s.id === sourceId);
+            document.getElementById('currencySymbol').innerText = source?.currency === 'USD' ? '$' : '₦';
+        }
+
+        // --- Detail View (Specific Platform) ---
+        function viewPlatformDetails(id) {
+            const source = sources.find(s => s.id === id);
+            if (!source) return;
+
+            const platformLogs = logs.filter(l => l.sourceId === id);
+            const balance = platformLogs.reduce((a, b) => a + b.amount, 0);
+
+            document.getElementById('detailTitle').innerText = source.name;
+            document.getElementById('detailCurrency').innerText = `${source.currency} History`;
+            document.getElementById('detailBalance').innerText = format(balance, source.currency);
+            
+            document.getElementById('detailEditSourceBtn').onclick = () => openSourceModal(id);
+            document.getElementById('detailDeleteBtn').onclick = () => deleteSource(id);
+
+            document.getElementById('detailLedger').innerHTML = platformLogs.length === 0
+                ? `<p class="p-8 text-center text-slate-300 text-[10px] font-bold uppercase tracking-widest">No entries for this platform</p>`
+                : platformLogs.map(l => `
+                    <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl group transition-all active:bg-slate-100">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-0.5">
+                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">${new Date(l.date).toLocaleDateString()}</p>
+                                ${l.detail ? `<span class="text-[9px] bg-white text-slate-400 px-1.5 py-0.5 rounded border border-slate-100 font-bold uppercase">${l.detail}</span>` : ''}
+                            </div>
+                            <p class="font-black text-sm ${l.amount < 0 ? 'text-red-500' : 'text-slate-800'}">
+                                ${l.amount > 0 ? '+' : ''}${format(l.amount, source.currency)}
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-1 opacity-60 group-hover:opacity-100">
+                            <button onclick="openLogModal('${l.id}')" class="text-blue-400 p-2"><i data-lucide="edit-3" size="14"></i></button>
+                            <button onclick="deleteLog('${l.id}', '${id}')" class="text-slate-300 hover:text-red-400 p-2"><i data-lucide="trash-2" size="14"></i></button>
+                        </div>
+                    </div>
+                `).join('');
+
+            toggleModal('detailModal', true);
+            lucide.createIcons();
+        }
+
+        // --- Utilities ---
+        function saveToStorage() {
+            localStorage.setItem('wp_v4_sources', JSON.stringify(sources));
+            localStorage.setItem('wp_v4_logs', JSON.stringify(logs));
+            render();
+        }
+
         function format(val, curr) {
             return new Intl.NumberFormat(curr === 'NGN' ? 'en-NG' : 'en-US', {
                 style: 'currency', currency: curr, maximumFractionDigits: 0
@@ -352,16 +433,16 @@
 
         function exportData() {
             if (logs.length === 0) return alert("No data to export");
-            const csv = "Date,Platform,Currency,Amount\n" + 
+            const csv = "Date,Platform,Currency,Amount,Details\n" + 
                 logs.map(l => {
                     const s = sources.find(src => src.id === l.sourceId);
-                    return `${l.date},${s?.name},${s?.currency},${l.amount}`;
+                    return `${l.date},"${s?.name}","${s?.currency}",${l.amount},"${l.detail || ''}"`;
                 }).join('\n');
             console.log(csv);
-            alert("CSV data exported to browser console");
+            alert("Data exported to console. See developer tools.");
         }
 
-        // --- Rendering ---
+        // --- Global Rendering ---
         function render() {
             const sourceBalances = {};
             let totalN = 0;
@@ -377,7 +458,7 @@
             document.getElementById('totalNaira').innerText = format(totalN, 'NGN');
             document.getElementById('totalDollars').innerText = format(totalD, 'USD');
 
-            // Platforms List
+            // Dashboard Platforms
             document.getElementById('platformList').innerHTML = sources.map(s => `
                 <div onclick="viewPlatformDetails('${s.id}')" class="bg-white p-5 rounded-3xl border border-slate-100 flex justify-between items-center shadow-sm active:scale-[0.98] transition-all cursor-pointer">
                     <div class="flex items-center gap-4">
@@ -405,7 +486,10 @@
                         <div class="p-4 border-b border-slate-50 last:border-none flex justify-between items-center">
                             <div>
                                 <p class="font-bold text-xs">${s?.name || 'Unknown'}</p>
-                                <p class="text-[9px] text-slate-400 font-medium">${new Date(l.date).toLocaleDateString()}</p>
+                                <div class="flex items-center gap-1.5 mt-0.5">
+                                    <p class="text-[8px] text-slate-400 font-bold uppercase tracking-tighter">${new Date(l.date).toLocaleDateString()}</p>
+                                    ${l.detail ? `<p class="text-[8px] text-blue-400 font-bold uppercase italic">${l.detail}</p>` : ''}
+                                </div>
                             </div>
                             <span class="font-black text-xs ${l.amount < 0 ? 'text-red-500' : 'text-slate-700'}">
                                 ${l.amount > 0 ? '+' : ''}${format(l.amount, s?.currency)}
@@ -414,19 +498,12 @@
                     `;
                 }).join('');
 
-            // Update Log Modal Select
-            document.getElementById('logSource').innerHTML = sources.map(s => 
-                `<option value="${s.id}">${s.name} (${s.currency})</option>`
-            ).join('');
-            
             lucide.createIcons();
         }
 
-        // --- Init ---
+        // --- Listeners ---
         document.getElementById('logSource').addEventListener('change', updateLogCurrency);
-        document.getElementById('passInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleAuth();
-        });
+        document.getElementById('passInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleAuth(); });
         
         window.onload = initAuth;
     </script>
